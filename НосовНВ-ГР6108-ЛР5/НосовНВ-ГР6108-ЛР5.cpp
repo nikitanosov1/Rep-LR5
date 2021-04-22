@@ -19,7 +19,6 @@
 #define MAX_SIZE_COEF 100;
 using namespace std;
 
-
 int power(int x, int y)  // Функция быстрого возведения в степень
 {
 	if (y == 0) return 1;
@@ -44,6 +43,7 @@ public:
 		a = new int[s];
 		for (size_t i = 0; i < s; ++i) a[i] = m[i];
 	};
+    size_t getSize() { return size; }
 	bool isRoot(int x)  // Метод проверки корня x
 	{
 		int temp = 0;
@@ -161,8 +161,18 @@ private:
 	int* a;    // массив для хранения коэффициентов полинома   
 	friend ifstream& operator>>(ifstream&, Polynom& P);
 	friend ofstream& operator<<(ofstream&, const Polynom& P);
+    friend istream& operator>>(istream&, Polynom& P);
+    friend ostream& operator<<(ostream&, const Polynom& P);
 };
 
+istream& operator>>(istream& fin, Polynom& P)
+{
+    fin >> P.size;
+    delete[] P.a;
+    P.a = new int[P.size];
+    for (size_t i = 0; i < P.size; ++i) fin >> P.a[i];
+    return fin;
+}
 ifstream& operator>>(ifstream& fin, Polynom& P)
 {
 	fin >> P.size;
@@ -170,6 +180,19 @@ ifstream& operator>>(ifstream& fin, Polynom& P)
 	P.a = new int[P.size];
 	for (size_t i = 0; i < P.size; ++i) fin >> P.a[i];
 	return fin;
+}
+ostream& operator<<(ostream& fout, const Polynom& P)
+{
+    for (size_t i = 0; i < P.size; ++i)
+    {
+        if (i == 0) fout << P.a[i] << "*x^" << P.size - i - 1;
+        else
+        {
+            if (P.a[i] > -1) fout << "+";
+            fout << P.a[i] << "*x^" << P.size - i - 1;
+        }
+    }
+    return fout;
 }
 ofstream& operator<<(ofstream& fout, const Polynom& P)
 {
@@ -205,11 +228,288 @@ Polynom createRand()  // Функция возвращает случайно с
 	return P;
 }
 
+
+struct elem   // Структура каждого элемента списка
+{
+    Polynom value;  // Храниемое значение
+    elem* prev = 0;    // Ссылка на следующий элемент списка
+    elem* next = 0;    // Ссылка на предыдущий элемент списка
+};
+
+class List {
+public:
+    List() : head(NULL), tail(NULL), size(0) {};  // Конструктор
+    elem* getHead() { return head; }  // Геттеры
+    elem* getTail() { return tail; }
+    size_t getSize() { return size; }
+    void add(const Polynom& x)   // Метод добавления элемента x в конец списка
+    {
+        elem* temp = new elem;  // Выделяем память для нового элемента
+        temp->next = NULL;  // Инициализируем его поля
+        temp->value = x;
+        ++size;   // Увеличиваем размер списка на 1
+        if (head == NULL)   // Если список пустой
+        {
+            temp->prev = NULL;
+            head = tail = temp;
+        }
+        else  // Если в списке уже что-то хранится
+        {
+            tail->next = temp;
+            temp->prev = tail;
+            tail = temp;
+        }
+    }
+    void showListInConsole()  // Метод вывода списка в консоль
+    {
+        elem* temp = head;
+        while (temp)
+        {
+            cout << temp->value << " ";
+            temp = temp->next;
+        }
+    }
+    void generateList(size_t wantSize)  // Метод генерации списка заданной длины (Значения от 0 до 1000)
+    {
+        this->~List();  // Уничтожаем текущий список
+        size = 0;
+        while (wantSize--)
+        {
+            add(createRand());  // Заполняем новый
+        }
+    }
+    elem* operator[](size_t n) // Поиск n-ого элемента в списке (отсчёт с нуля). Возвращает указатель на этот элемент
+    {
+        elem* temp = head;
+        while (n--) temp = temp->next;
+        return temp;
+    }
+    void swap(elem* a, elem* b)
+    {
+        // Попробуй создать 4 временных указателя для а, например, анализируешь граничные, 
+        if (a == b) return;
+        if (a->prev == NULL && b->next == NULL)  // a указывает на первый элемент, b - на последний  //CORRECT
+        {
+            if (a->next == b)
+            {
+                b->next = a;
+                a->prev = b;
+            }
+            else
+            {
+                a->next->prev = b;
+                b->prev->next = a;
+                b->next = a->next;
+                a->prev = b->prev;
+            }
+            a->next = NULL;
+            b->prev = NULL;
+            head = b;
+            tail = a;
+        }
+        else if (a->prev == NULL && b->next != NULL) // a указывает на первый элемент, b - не на крайний  // CORRECT
+        {
+            if (a->next == b)
+            {
+                b->next->prev = a;
+                a->next = b->next;
+                b->next = a;
+                a->prev = b;
+                b->prev = NULL;
+                head = b;
+            }
+            else
+            {
+                a->next->prev = b;//
+                b->prev->next = a;//
+                b->next->prev = a;//
+                pSwap(b->next, a->next);
+                a->prev = b->prev;
+                b->prev = NULL;
+                head = b;
+            }
+        }
+        else if (a->next == NULL && b->prev == NULL) // a указывает на последний элемент, b - на первый  // CORRECT
+        {
+            if (b->next == a)
+            {
+                a->next = b;
+                b->prev = a;
+            }
+            else
+            {
+                b->next->prev = a;//
+                a->prev->next = b;//
+                a->next = b->next;
+                b->prev = a->prev;
+            }
+            b->next = NULL;
+            a->prev = NULL;
+            head = a;
+            tail = b;
+        }
+        else if (a->next == NULL && b->prev != NULL) // a указывает на последний элемент, b - не на крайний //CORRECT
+        {
+            if (b->next == a)
+            {
+                b->prev->next = a;
+                a->prev = b->prev;
+                a->next = b;
+                b->prev = a;
+                b->next = NULL;
+                tail = b;
+            }
+            else
+            {
+                b->next->prev = a;
+                b->prev->next = a;
+                a->prev->next = b;
+                a->next = b->next;
+                pSwap(b->prev, a->prev);
+                b->next = NULL;
+                tail = b;
+            }
+        }
+        else if (b->next == NULL)  // a указывает не на крайний, b - на последний  // CORRECT
+        {
+            if (a->next == b)
+            {
+                a->prev->next = b;
+                b->prev = a->prev;
+                b->next = a;
+                a->prev = b;
+                a->next = NULL;
+                tail = a;
+            }
+            else
+            {
+                a->next->prev = b;
+                a->prev->next = b;
+                b->prev->next = a;
+                b->next = a->next;
+                pSwap(a->prev, b->prev);
+                a->next = NULL;
+                tail = a;
+            }
+        }
+        else if (b->prev == NULL) // a указывает не на крайний, b - на первый  // CORRECT
+        {
+            if (b->next == a)
+            {
+                a->next->prev = b;
+                b->next = a->next;
+                a->next = b;
+                b->prev = a;
+                a->prev = NULL;
+                head = a;
+            }
+            else
+            {
+                b->next->prev = a;
+                a->prev->next = b;
+                a->next->prev = b;
+                pSwap(a->next, b->next);
+                b->prev = a->prev;
+                a->prev = NULL;
+                head = a;
+            }
+        }
+        else  // a, b указывают не на крайние элементы
+        {
+            if (a->next == b)  // CORRECT
+            {
+                b->next->prev = a;
+                a->prev->next = b;
+                b->prev = a->prev;
+                a->next = b->next;
+                b->next = a;
+                a->prev = b;
+            }
+            else if (b->next == a)  // CORRECT
+            {
+                a->next->prev = b;
+                b->prev->next = a;
+                a->prev = b->prev;
+                b->next = a->next;
+                a->next = b;
+                b->prev = a;
+            }
+            else
+            {  // CORRECT
+                pSwap(a->prev->next, b->prev->next); // left up
+                pSwap(a->next->prev, b->next->prev); // right down
+                pSwap(a->next, b->next);  // right up
+                pSwap(a->prev, b->prev);  // left down
+            }
+        }
+    }
+    ~List()  // Деструктор
+    {
+        while (head)   // Пока ещё есть элементы в списке
+        {
+            elem* temp = head->next;
+            delete head;    // Удаляем первый элемент, корректируя указатели
+            head = temp;
+        }
+    }
+private:
+    elem* head;  // Указатель на первый элемент списка 
+    elem* tail;  // Указатель на последний элемент списка
+    size_t size;  // Размер списка
+    void pSwap(elem*& a, elem*& b)  // Процедура обмена указателей
+    {
+        elem* temp = a;
+        a = b;
+        b = temp;
+    }
+};
+
+
+void SelectionSort(List& list)
+{
+    elem* temp1 = list.getHead();
+    while (temp1) {
+        size_t min = temp1->value.getSize();
+        elem* pointerMinElem = temp1;
+        elem* temp2 = temp1;
+        while (temp2)
+        {
+            if (temp2->value.getSize() < min)
+            {
+                min = temp2->value.getSize();
+                pointerMinElem = temp2;
+            }
+            temp2 = temp2->next;
+        }
+        list.swap(temp1, pointerMinElem);
+        elem* z = temp1;   // swap указателей
+        temp1 = pointerMinElem;
+        pointerMinElem = z;
+        temp1 = temp1->next;
+    }
+}
+
+void checkSort(List& L)
+{
+    if (L.getSize() < 2) { cout << "Sorted" << endl; return; }
+    bool flag = true;
+    elem* curr = L[0];
+    elem* next = L[1];
+    for (size_t i = 0; i < L.getSize() - 1; ++i)
+    {
+        if (curr->value.getSize() >= next->value.getSize()) {flag = false; break;}
+        curr = curr->next;
+        next = next->next;
+    }
+    (flag) ? cout << "Sorted" << endl : cout << "Not sorted" << endl;
+}
+
 int main()
 {
     size_t N = inputN();
-
-
-
+    List list;
+    list.generateList(N);
+    SelectionSort(list);
+    checkSort(list);
     return 0;
 }
